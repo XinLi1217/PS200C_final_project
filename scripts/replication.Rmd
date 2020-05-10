@@ -12,14 +12,15 @@ library(descr)
 ```
 
 ```{r}
-load("~/PS200C_final_project/NELS_88_00_BYF4STU_V1_0.rdata")
+data_dir <- file.path('..', 'data')
+load(file.path(data_dir,"NELS_88_00_BYF4STU_V1_0.rdata"))
 ```
 
 ```{r}
 data <- BYF4STU %>% dplyr::select(c(STU_ID,F4EFSECT,F4ELSECT,F4HHDG, 
                                     BYS12,RACE,BYSES,
                                 F22XRSTD,F22XMSTD,F1HSPROG,BYS82O,
-                                F1S41BC,F2S30BC,F1D63,MARSTAT,BYPSEPLN))
+                                F1S41BC,F2S30BC,F1D63,MARSTAT,BYPSEPLN, F2S76))
 # Transfer
 data %>% count(F4EFSECT)
 data %>% count(F4ELSECT)
@@ -71,6 +72,9 @@ data <- data %>% mutate(acapro = ifelse(F1HSPROG==1,1,0),
                         expectba =ifelse(BYPSEPLN==5,1,ifelse(BYPSEPLN>=98,NA,0)))
 
 ## Financial aid and work related activities
+#Read in pse data
+load(file.path(data_dir,"NELS_88_00_PSE1994_V1_0.rdata"))
+
 data <- merge(data,PSE1994, by="STU_ID") 
 ### duplicate stu_id?? all.x= TRUE, all.y = FALSE??
 
@@ -91,7 +95,7 @@ data %>% count(marry)
 data1 <- data %>% dplyr::select(c(STU_ID, transfer, ba, female, asian, black, hispanic, white, ses,
                   hsscore, acapro, honor, gover, child, marry, expectba, 
                   grant, loans, workoncampus)) 
-data1 <- data1[is.na(transfer)==0,]
+data1 <- data1[is.na(data$transfer)==0,]
 
 balance <- function(x){b <- balanceUV(x[is.na(x) == 0 & data1$transfer==1],
                                  x[is.na(x) == 0 & data1$transfer==0])
@@ -108,4 +112,3 @@ kable(table, caption ="descriptive statistics of Transfers and rising loans stud
       booktabs = T, digits = 2)
 apply(table["var.Tr",],1,sqrt)
 ```
-
