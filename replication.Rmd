@@ -1,0 +1,91 @@
+---
+title: "replication"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(Matching)
+library(knitr)
+library(descr)
+```
+
+```{r}
+load("~/PS200C_final_project/NELS_88_00_BYF4STU_V1_0.rdata")
+
+# Transfer
+data <- BYF4STU
+data %>% count(F4EFSECT)
+data %>% count(F4ELSECT)
+data <- data %>% mutate(community1=ifelse(F4EFSECT==4,1,ifelse(F4EFSECT %in% c(5,6),0,NA)),
+                         community2=ifelse(F4ELSECT==4,1,ifelse(F4ELSECT %in% c(5,6),0,NA)))
+data %>% count(community1)
+data %>% count(community2)
+crosstab(data$community1,data$community2)
+data <- data %>% mutate(transfer = ifelse(community1==1 & community2 ==0, 1, 
+                                           ifelse(community1==0 & community2 ==0, 0,NA)))
+data %>% count(transfer)
+
+#data %>% count(PSEFIRTY)
+#length(data$PSEFIR)
+#data %>% count(PSELASTY)
+#data1 <- data %>% mutate(community1=ifelse(PSEFIRTY==4,1,ifelse(PSEFIRTY %in% c(5,6),0,NA)),
+#                         community2=ifelse(PSELASTY==4,1,ifelse(PSELASTY %in% c(5,6),0,NA)))
+#data1 %>% count(community1)
+#data1 %>% count(community2)
+#crosstab(data1$community1,data1$community2)
+
+
+# BA 
+data %>% count(F4HHDG)
+data <- data %>% mutate(ba=ifelse(F4HHDG>=4,1,ifelse(F4HHDG<=0,NA,0)))
+                          
+
+# Covariate
+## Individual characteristics
+data <- data %>% mutate(female = ifelse(BYS12==2,1,ifelse(BYS12==1,0,NA)),
+                        asian = ifelse(RACE==1,1,ifelse(RACE %in% c(8,9),NA,0)),
+                        black = ifelse(RACE==3,1,ifelse(RACE %in% c(8,9),NA,0)), 
+                        hispanic = ifelse(RACE==2,1,ifelse(RACE %in% c(8,9),NA,0)), 
+                        white = ifelse(RACE==4,1,ifelse(RACE %in% c(8,9),NA,0)))
+data$ses <- ifelse(data$BYSES<99, scale(data$BYSES,
+                                        center=(2.56000-2.87500)/2, 
+                                        scale =(2.56000+2.87500)/2), NA)
+
+## High school academic preparation and other characteristics
+data$hsscore <- ifelse(data$F22XRSTD<99 & data$F22XMSTD<99,
+                       (data$F22XRSTD + data$F22XMSTD)/2, NA)
+data <- data %>% mutate(acapro = ifelse(F1HSPROG==1,1,0),
+                        honor = ifelse(BYS82O ==2|3,1,ifelse(BYS82O %in% c(8,9),NA,0)),
+                        gover = ifelse(F1S41BC %in% c(3,4)|F2S30BC %in% c(3,4),1,
+                                       ifelse(F1S41BC %in% c(8,9)|F2S30BC %in% c(8,9),NA,0)), 
+                        child = ifelse(F1D63==1,1,ifelse(F1D63 %in% c(8,9),NA,0)),
+                        marry = ifelse(F1D88==2,1,ifelse(F1D88 %in% c(8,9),NA,0)),
+                        expectba =ifelse(BYPSEPLN==5,1,ifelse(BYPSEPLN>=98,NA,0)))
+
+## Financial aid and work related activities
+data <- merge(data,PSE1994,by="STU_ID")
+data <- data %>% mutate(grant =ifelse(GRANTS==1,1,ifelse(GRANTS==2,0,NA)),
+                        loans = ifelse(LOANS==1,1,ifelse(LOANS==2,0,NA)),
+                        workoncampus =ifelse(WORKSTDY==1,1,ifelse(WORKSTDY==2,0,NA)))
+
+## Regional and labor market characteristics
+
+# G12REGON  2243-2244     REGION (CENSUS) OF STUDENT^S SCHOOL
+# TUITFEES  9-10          Tuition/fees decile, 1993-94
+
+```
+
+```{r}
+balance <- function(x){b <- balanceUV(x[is.na(x) == 0 & data$transfer==1],
+                                 x[is.na(x) == 0 & data$transfer==0], 
+                                 ks = TRUE)
+c(b[c(3,4,1,2,7)])
+}
+table <- cbind(balance())
+kable(table, caption ="descriptive statistics of Transfers and rising junior students", 
+      col.names =  c("", ), 
+      booktabs = T, digits = 2)
+```
+
