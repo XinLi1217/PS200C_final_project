@@ -9,29 +9,31 @@ library(tidyverse)
 library(Matching)
 library(knitr)
 library(descr)
+library(MatchIt)
+library(sensemakr)
 ```
 
-```{r}
+```{r read data}
 data_dir <- file.path('..', 'data')
 load(file.path(data_dir,"NELS_88_00_BYF4STU_V1_0.rdata"))
 ```
 
-```{r}
+```{r data cleaning}
 data <- BYF4STU %>% dplyr::select(c(STU_ID,F4EFSECT,F4ELSECT,F4HHDG, 
                                     BYS12,RACE,BYSES,
                                 F22XRSTD,F22XMSTD,F1HSPROG,BYS82O,
                                 F1S41BC,F2S30BC,F1D63,MARSTAT,BYPSEPLN, F2S76))
 # Transfer
-data %>% count(F4EFSECT)
-data %>% count(F4ELSECT)
+# data %>% count(F4EFSECT)
+# data %>% count(F4ELSECT)
 data <- data %>% mutate(community1=ifelse(F4EFSECT==4,1,ifelse(F4EFSECT %in% c(5,6),0,NA)),
                          community2=ifelse(F4ELSECT==4,1,ifelse(F4ELSECT %in% c(5,6),0,NA)))
-data %>% count(community1)
-data %>% count(community2)
-crosstab(data$community1,data$community2)
+# data %>% count(community1)
+# data %>% count(community2)
+# crosstab(data$community1,data$community2)
 data <- data %>% mutate(transfer = ifelse(community1==1 & community2 ==0, 1, 
                                            ifelse(community1==0 & community2 ==0, 0,NA)))
-data %>% count(transfer)
+# data %>% count(transfer)
 
 #data %>% count(PSEFIRTY)
 #length(data$PSEFIR)
@@ -44,10 +46,7 @@ data %>% count(transfer)
 
 
 # BA 
-data %>% count(F4HHDG)
 data <- data %>% mutate(ba=ifelse(F4HHDG>=4,1,ifelse(F4HHDG<=0,NA,0)))
-data %>% count(ba)
-                     
 
 # Covariate
 ## Individual characteristics
@@ -64,7 +63,7 @@ data$ses <- ifelse(data$BYSES<99, scale(data$BYSES,
 data$hsscore <- ifelse(data$F22XRSTD<99 & data$F22XMSTD<99,
                        (data$F22XRSTD + data$F22XMSTD)/2, NA)
 data <- data %>% mutate(acapro = ifelse(F1HSPROG==1,1,0),
-                        honor = ifelse(BYS82O ==2|3,1,ifelse(BYS82O %in% c(8,9),NA,0)),
+                        honor = ifelse(BYS82O %in% c(2,3),1,ifelse(BYS82O %in% c(8,9),NA,0)),
                         gover = ifelse(F1S41BC %in% c(3,4)|F2S30BC %in% c(3,4),1,
                                        ifelse(F1S41BC %in% c(8,9)|F2S30BC %in% c(8,9),NA,0)), 
                         child = ifelse(F2S76==1,1,ifelse(F2S76 %in% c(8,9),NA,0)),
@@ -86,29 +85,87 @@ data <- data %>% mutate(grant =ifelse(GRANTS==1,1,ifelse(GRANTS==2,0,NA)),
 
 # G12REGON  2243-2244     REGION (CENSUS) OF STUDENT^S SCHOOL
 # TUITFEES  9-10          Tuition/fees decile, 1993-94
-
-data %>% count(marry)
-
 ```
 
-```{r}
-data1 <- data %>% dplyr::select(c(STU_ID, transfer, ba, female, asian, black, hispanic, white, ses,
+```{r summary statistics}
+data1 <- data %>% 
+  dplyr::select(c(STU_ID, transfer, ba, female, asian, black, hispanic, white, ses,
                   hsscore, acapro, honor, gover, child, marry, expectba, 
                   grant, loans, workoncampus)) 
-data1 <- data1[is.na(data$transfer)==0,]
 
+# data1 <- data1[is.na(data$transfer)==0,]
+data1 <- na.omit(data1)
+data1 %>% count(transfer)
 balance <- function(x){b <- balanceUV(x[is.na(x) == 0 & data1$transfer==1],
                                  x[is.na(x) == 0 & data1$transfer==0])
 c(b[c(3,5,4,6,1,7)])
 }
 attach(data1)
-# cbind(apply(data1[,seq(3,19,1)], 2, balance))
-table <- cbind(balance(ba), balance(female), balance(asian), balance(black),
+# as.matrix(cbind(unlist(lapply(data1[,seq(3,19,1)], balance))),17,6)
+table <- rbind(balance(ba), balance(female), balance(asian), balance(black),
                balance(hispanic), balance(white), balance(ses), balance(hsscore),
                balance(acapro), balance(honor), balance(gover), balance(child),
-              balance(expectba), balance(grant),balance(child),
+               balance(marry),balance(expectba), balance(grant),balance(loans),
               balance(workoncampus))
+table <- matrix(unlist(table),nrow=17,ncol=6,byrow=FALSE)
+table[,2] <- sqrt(table[,2])  ## change var to sd  
+table[,4] <- sqrt(table[,4])  
+round(table,2)
+rownames(table) <- c("Completed bachelor's degree by 2000",
+                     "Female", "Asian", "black","Hispanic", "White",
+                     "Socioeconomic status (range -1 to 1)",
+                     "High school test score (math and verbal)",
+                     "Academic program in high school", 
+                     "Participated in honors program in high school",
+                     "Participated in student government in high school",
+                     "Had a child by 1992", "Married by 1992",
+                     "Bachelor's degree expectations",
+                     "Received a grant","Took out a loan", "Worked on-campus")
+colnames(table) <- c("Mean.Tr", "SD.Tr", "Mean.Co","SD.Co","Diff","p_value" )
+
 kable(table, caption ="descriptive statistics of Transfers and rising loans students", 
       booktabs = T, digits = 2)
-apply(table["var.Tr",],1,sqrt)
+# apply(table["var.Tr",],1,sqrt)
+# or use: MatchBalance(transfer~ba+female)
 ```
+
+```{r probit & psm}
+# probit
+probit <- glm(ba~transfer+female+asian+black+hispanic+white+ses+
+                  hsscore+acapro+honor+gover+child+marry+expectba+
+                  grant+loans+workoncampus,family="binomial"(link=probit))
+lm <- lm(ba~transfer+female+asian+black+hispanic+white+ses+
+           hsscore+acapro+honor+gover+child+marry+expectba+
+           grant+loans+workoncampus)
+summary(probit)
+# estimate propensity scores
+pi.out = glm(transfer~female+asian+black+hispanic+white+ses+
+                  hsscore+acapro+honor+gover+child+marry+expectba+
+                  grant+loans+workoncampus,family="binomial"(link=probit))
+# propensity scores for treated and control
+plot(density(pi.out$fit[transfer==1]), lwd=2, main="Distribution of pscores", ylim =c(0,4))
+lines(density(pi.out$fit[transfer==0]), lwd=2, lty=2)
+legend("topleft", legend=c("treated","controls"), lty=c(1,2), lwd=2)
+# match on propensity score
+matchout.pi1=Match(Y=ba, Tr=transfer, X=pi.out$fit, M=1,estimand="ATT")
+summary(matchout.pi)
+matchout.pi2=Match(Y=ba, Tr=transfer, X=pi.out$fit, M=1,estimand="ATE")
+summary(matchout.pi)
+matchout.pi3=Match(Y=ba, Tr=transfer, X=pi.out$fit, M=1,estimand="ATU")
+summary(matchout.pi)
+# or use matchit()
+```
+
+```{r sensitivity ananlysis}
+sensitivity <- sensemakr(model = lm, 
+                                treatment = "transfer",
+                                benchmark_covariates = "female",
+                                kd = 1:3)
+summary(sensitivity)
+ovb_minimal_reporting(sensitivity, format = "latex")
+plot(sensitivity)
+plot(sensitivity, sensitivity.of = "t-value")
+plot(sensitivity, type = "extreme")
+## probit? benchmark var? psm?
+```
+
