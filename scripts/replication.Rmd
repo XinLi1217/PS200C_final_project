@@ -6,6 +6,8 @@ output: pdf_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(haven)
+library(labelled)
 library(Matching)
 library(knitr)
 library(descr)
@@ -15,19 +17,108 @@ library(sensemakr)
 
 ```{r read data}
 data_dir <- file.path('..', 'data')
+
+#Load rdata files
 load(file.path(data_dir,"NELS_88_00_BYF4STU_V1_0.rdata"))
+load(file.path(data_dir,"NELS_88_00_INSTF3F4_V1_0.rdata"))
+load(file.path(data_dir,"NELS_88_00_PSEF3F4_V1_0.rdata"))
+load(file.path(data_dir,"NELS_88_00_PSE1994_V1_0.rdata"))
+
+# Load stata data because it has variable labels
+#byf4stu <- read_dta(file.path(data_dir,"NELS_88_00_BYF4STU_V1_0.dta"))
+#instf3f4 <- read_dta(file.path(data_dir,"NELS_88_00_INSTF3F4_V1_0.dta"))
+#psef3f4 <- read_dta(file.path(data_dir,"NELS_88_00_PSEF3F4_V1_0.dta"))
+#pse1994 <- read_dta(file.path(data_dir,"NELS_88_00_PSE1994_V1_0.dta"))
+```
+
+```{r 1994 data}
+#NELS:88 third follow-up interview in 1994
+#PSE1994 %>%
+#  var_label() #variable labels
+
+head(PSE1994) #View data
+
+names(PSE1994) <- str_to_lower(names(PSE1994)) #lowercase variable names
+
+pse1994 <- PSE1994
+
+pse1994 %>%
+  dplyr::group_by(stu_id, incode, instnum) %>%
+  summarise(n_per_group = n()) %>%
+  ungroup() %>%
+  count(n_per_group)
+
+#Uniquely identified by student id, NELS:88/94 code of inst attended, and institution sequence number
+
+```
+
+```{r four follow-up}
+#NELS:88 fourth follow-up interview
+#PSEF3F4 %>%
+#  var_label() #variable labels
+
+head(PSEF3F4) #View data
+
+names(PSEF3F4) <- str_to_lower(names(PSEF3F4)) #lowercase variable names
+
+psef3f4 <- PSEF3F4
+
+psef3f4 %>%
+  dplyr::group_by(stu_id, incode) %>%
+  summarise(n_per_group = n()) %>%
+  ungroup() %>%
+  count(n_per_group)
+
+#PSE94FLG is a flag variable that indicates whether or not the postsecondary institution reported by the sample member was provided during the NELS:88 third follow-up interview in 1994.  For those students that reported schools during the 1994 interview, information on these postsecondary institutions is contained in the PSE1994 file. To match to record(s) in the PSE1994 file, STU_ID+INCODE may be used for merging files. Sources: NELS:88/94
+
+psef3f4 %>%
+  dplyr::count(pse94flg) #9226 postsecondary institution was provided in the third follow-up
+```
+
+```{r merge 1994 and fourth follow-up}
+#merge psef3f4 and pse1994 datasets
+pse_all <- left_join(psef3f4, pse1994, by = c('stu_id', 'incode'))
+
+#check merge
+anti_pse <- anti_join(psef3f4, pse1994, by = c('stu_id', 'incode'))
+
+anti_pse %>%
+  count(pse94flg) #7233 where 1994 institution was not provided in third follow-up
+
+pse_all %>%
+  count(pse94flg) #7233
+```
+
+```{r investigate merge}
+#investigate pse_all data
+head(pse_all)
+
+#Want to drop obs where pse94flg is 0 because we do not have data for institution reported for the third follow-up
+
+pse_all <- pse_all %>%
+  filter(pse94flg==1)
+
+#quick check of missing values 
+sapply(pse_all, function(x) sum(is.na(x)))
 ```
 
 ```{r data cleaning}
-data <- BYF4STU %>% dplyr::select(c(STU_ID,F4EFSECT,F4ELSECT,F4HHDG, 
-                                    BYS12,RACE,BYSES,
-                                F22XRSTD,F22XMSTD,F1HSPROG,BYS82O,
-                                F1S41BC,F2S30BC,F1D63,MARSTAT,BYPSEPLN, F2S76))
+names(BYF4STU) <- str_to_lower(names(BYF4STU)) #lowercase variable names
+
+data <- BYF4STU %>% dplyr::select(c(stu_id,f4efsect, f4elsect, f4hhdg, bys12, race, byses, f22xrstd, f22xmstd, f1hsprog,bys82o, f1s41bc, f2s30bc, f1d63, marstat, bypsepln, f2s76))
+
+
+data %>%
+  dplyr::select(f4efsect, f4elsect) %>%
+  filter(f4efsect %in% c(-7,-3,-2,-1) | f4elsect %in% c(-7,-3,-2,-1)) %>%
+  group_by(f4efsect) %>%
+  count(f4elsect)
+
 # Transfer
 # data %>% count(F4EFSECT)
 # data %>% count(F4ELSECT)
-data <- data %>% mutate(community1=ifelse(F4EFSECT==4,1,ifelse(F4EFSECT %in% c(5,6),0,NA)),
-                         community2=ifelse(F4ELSECT==4,1,ifelse(F4ELSECT %in% c(5,6),0,NA)))
+data <- data %>% mutate(community1=ifelse(f4efsect==4,1,ifelse(f4efsect %in% c(5,6),0,NA)),
+                         community2=ifelse(f4elsect==4,1,ifelse(f4elsect %in% c(5,6),0,NA)))
 # data %>% count(community1)
 # data %>% count(community2)
 # crosstab(data$community1,data$community2)
@@ -46,40 +137,39 @@ data <- data %>% mutate(transfer = ifelse(community1==1 & community2 ==0, 1,
 
 
 # BA 
-data <- data %>% mutate(ba=ifelse(F4HHDG>=4,1,ifelse(F4HHDG<=0,NA,0)))
+data <- data %>% mutate(ba=ifelse(f4hhdg>=4,1,ifelse(f4hhdg<=0,NA,0)))
 
 # Covariate
 ## Individual characteristics
-data <- data %>% mutate(female = ifelse(BYS12==2,1,ifelse(BYS12==1,0,NA)),
-                        asian = ifelse(RACE==1,1,ifelse(RACE %in% c(8,9),NA,0)),
-                        black = ifelse(RACE==3,1,ifelse(RACE %in% c(8,9),NA,0)), 
-                        hispanic = ifelse(RACE==2,1,ifelse(RACE %in% c(8,9),NA,0)), 
-                        white = ifelse(RACE==4,1,ifelse(RACE %in% c(8,9),NA,0)))
-data$ses <- ifelse(data$BYSES<99, scale(data$BYSES,
+data <- data %>% mutate(female = ifelse(bys12==2,1,ifelse(bys12==1,0,NA)),
+                        asian = ifelse(race==1,1,ifelse(race %in% c(8,9),NA,0)),
+                        black = ifelse(race==3,1,ifelse(race %in% c(8,9),NA,0)), 
+                        hispanic = ifelse(race==2,1,ifelse(race %in% c(8,9),NA,0)), 
+                        white = ifelse(race==4,1,ifelse(race %in% c(8,9),NA,0)))
+data$ses <- ifelse(data$byses<99, scale(data$byses,
                                         center=(2.56000-2.87500)/2, 
                                         scale =(2.56000+2.87500)/2), NA)
 
 ## High school academic preparation and other characteristics
-data$hsscore <- ifelse(data$F22XRSTD<99 & data$F22XMSTD<99,
-                       (data$F22XRSTD + data$F22XMSTD)/2, NA)
-data <- data %>% mutate(acapro = ifelse(F1HSPROG==1,1,0),
-                        honor = ifelse(BYS82O %in% c(2,3),1,ifelse(BYS82O %in% c(8,9),NA,0)),
-                        gover = ifelse(F1S41BC %in% c(3,4)|F2S30BC %in% c(3,4),1,
-                                       ifelse(F1S41BC %in% c(8,9)|F2S30BC %in% c(8,9),NA,0)), 
-                        child = ifelse(F2S76==1,1,ifelse(F2S76 %in% c(8,9),NA,0)),
-                        marry = ifelse(MARSTAT==2,1,ifelse(MARSTAT <0,NA,0)),
-                        expectba =ifelse(BYPSEPLN==5,1,ifelse(BYPSEPLN>=98,NA,0)))
+data$hsscore <- ifelse(data$f22xrstd<99 & data$f22xmstd<99,
+                       (data$f22xrstd + data$f22xmstd)/2, NA)
+data <- data %>% mutate(acapro = ifelse(f1hsprog==2,1,0),
+                        honor = ifelse(bys82o %in% c(2,3),1,ifelse(bys82o %in% c(8,9),NA,0)),
+                        gover = ifelse(f1s41bc %in% c(3,4)|f2s30bc %in% c(3,4),1,
+                                       ifelse(f1s41bc %in% c(8,9)|f2s30bc %in% c(8,9),NA,0)), 
+                        child = ifelse(f2s76 ==1,1,ifelse(f2s76 %in% c(8,9),NA,0)),
+                        marry = ifelse(marstat==2,1,ifelse(marstat<0,NA,0)),
+                        expectba =ifelse(bypsepln==5,1,ifelse(bypsepln>=98,NA,0)))
 
 ## Financial aid and work related activities
 #Read in pse data
-load(file.path(data_dir,"NELS_88_00_PSE1994_V1_0.rdata"))
 
-data <- merge(data,PSE1994, by="STU_ID") 
+data <- merge(data,pse_all, by="stu_id") 
 ### duplicate stu_id?? all.x= TRUE, all.y = FALSE??
 
-data <- data %>% mutate(grant =ifelse(GRANTS==1,1,ifelse(GRANTS==2,0,NA)),
-                        loans = ifelse(LOANS==1,1,ifelse(LOANS==2,0,NA)),
-                        workoncampus =ifelse(WORKSTDY==1,1,ifelse(WORKSTDY==2,0,NA)))
+data <- data %>% mutate(grant =ifelse(grants==1,1,ifelse(grants==2,0,NA)),
+                        loans = ifelse(loans==1,1,ifelse(loans==2,0,NA)),
+                        workoncampus =ifelse(workstdy==1,1,ifelse(workstdy==2,0,NA)))
 
 ## Regional and labor market characteristics
 
@@ -89,7 +179,7 @@ data <- data %>% mutate(grant =ifelse(GRANTS==1,1,ifelse(GRANTS==2,0,NA)),
 
 ```{r summary statistics}
 data1 <- data %>% 
-  dplyr::select(c(STU_ID, transfer, ba, female, asian, black, hispanic, white, ses,
+  dplyr::select(c(stu_id, transfer, ba, female, asian, black, hispanic, white, ses,
                   hsscore, acapro, honor, gover, child, marry, expectba, 
                   grant, loans, workoncampus)) 
 
