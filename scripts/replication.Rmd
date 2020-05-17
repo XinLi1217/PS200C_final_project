@@ -42,6 +42,8 @@ names(PSE1994) <- str_to_lower(names(PSE1994)) #lowercase variable names
 
 pse1994 <- PSE1994
 
+head(pse1994)
+
 pse1994 %>%
   dplyr::group_by(stu_id, incode, instnum) %>%
   summarise(n_per_group = n()) %>%
@@ -94,19 +96,26 @@ pse_all %>%
 head(pse_all)
 
 #Want to drop obs where pse94flg is 0 because we do not have data for institution reported for the third follow-up
+#names(pse_all)
 
 pse_all <- pse_all %>%
   filter(pse94flg==1)
 
+pse_aid <- pse_all %>%
+  dplyr::select(grants, loans, workstdy)
+
 #quick check of missing values 
-sapply(pse_all, function(x) sum(is.na(x)))
+sapply(pse_aid, function(x) sum(is.na(x)))
 ```
 
 ```{r data cleaning}
 names(BYF4STU) <- str_to_lower(names(BYF4STU)) #lowercase variable names
 
-data <- BYF4STU %>% dplyr::select(c(stu_id,f4efsect, f4elsect, f4hhdg, bys12, race, byses, f22xrstd, f22xmstd, f1hsprog,bys82o, f1s41bc, f2s30bc, f1d63, marstat, bypsepln, f2s76))
+data <- BYF4STU %>% dplyr::select(c(stu_id,f4efsect, f4elsect, f4hhdg, bys12, race, byses, f22xrstd, f22xmstd, f1hsprog,bys82o, f1s41bc, f2s30bc, f1d63, marstat, bypsepln, f2s76, edexpect, labr0692, trnregon))
 
+#FOR XIN
+#Need to add all variables for employment by month
+#Need to add trnregon variable for region of last school attended
 
 data %>%
   dplyr::select(f4efsect, f4elsect) %>%
@@ -133,7 +142,7 @@ data <- data %>% mutate(transfer = ifelse(community1==1 & community2 ==0, 1,
 #                         community2=ifelse(PSELASTY==4,1,ifelse(PSELASTY %in% c(5,6),0,NA)))
 #data1 %>% count(community1)
 #data1 %>% count(community2)
-#crosstab(data1$community1,data1$community2)
+#crosstab(data$community1,data$community2)
 
 
 # BA 
@@ -150,30 +159,53 @@ data$ses <- ifelse(data$byses<99, scale(data$byses,
                                         center=(2.56000-2.87500)/2, 
                                         scale =(2.56000+2.87500)/2), NA)
 
+
+#crosstab(data$f1s41bc,data$f2s30b)
+
 ## High school academic preparation and other characteristics
 data$hsscore <- ifelse(data$f22xrstd<99 & data$f22xmstd<99,
                        (data$f22xrstd + data$f22xmstd)/2, NA)
-data <- data %>% mutate(acapro = ifelse(f1hsprog==2,1,0),
-                        honor = ifelse(bys82o %in% c(2,3),1,ifelse(bys82o %in% c(8,9),NA,0)),
+data <- data %>% mutate(acapro = ifelse(f1hsprog==2,1,ifelse(f1hsprog %in% c(5,8,9),NA,0)),
+                        honor = ifelse(bys82o %in% c(2,3),1,ifelse(bys82o %in% c(6,8,9),NA,0)),
                         gover = ifelse(f1s41bc %in% c(3,4)|f2s30bc %in% c(3,4),1,
-                                       ifelse(f1s41bc %in% c(8,9)|f2s30bc %in% c(8,9),NA,0)), 
-                        child = ifelse(f2s76 ==1,1,ifelse(f2s76 %in% c(8,9),NA,0)),
-                        marry = ifelse(marstat==2,1,ifelse(marstat<0,NA,0)),
-                        expectba =ifelse(bypsepln==5,1,ifelse(bypsepln>=98,NA,0)))
+                                       ifelse(f1s41bc %in% c(6,8,9) & f2s30bc %in% c(6,8,9),NA,0)), 
+                        child = ifelse(f2s76 ==1,1,ifelse(f2s76 %in% c(7,8,9),NA,0)),
+                        marry = ifelse(marstat%in%c(2,3,4),1,ifelse(marstat<0,NA,0)),
+                        expectba =ifelse(edexpect%in%c(7,8,9,10),1,ifelse(edexpect<0,NA,0)))
 
+
+
+  
 ## Financial aid and work related activities
 #Read in pse data
 
-data <- merge(data,pse_all, by="stu_id") 
+#pse_all %>%
+#  group_by(stu_id, instnum) %>%
+#  summarise(n_per_group = n()) %>%
+#  ungroup() %>%
+#  count(n_per_group)
+
+data <- left_join(data, pse_all, by = 'stu_id')
+
+#data %>%
+#  group_by(transfer) %>%
+# count(instnum)
+
+#data_anti <- anti_join(data, pse_all, by = 'stu_id')
+
+#data_anti %>%
+#  count(pse94flg)
+
 ### duplicate stu_id?? all.x= TRUE, all.y = FALSE??
 
 data <- data %>% mutate(grant =ifelse(grants==1,1,ifelse(grants==2,0,NA)),
                         loans = ifelse(loans==1,1,ifelse(loans==2,0,NA)),
-                        workoncampus =ifelse(workstdy==1,1,ifelse(workstdy==2,0,NA)))
+                        workoncampus =ifelse(campjob==1,1,ifelse(campjob==2,0,NA)))
+
 
 ## Regional and labor market characteristics
 
-# G12REGON  2243-2244     REGION (CENSUS) OF STUDENT^S SCHOOL
+# G12REGON TRNREGON 2243-2244     REGION (CENSUS) OF STUDENT^S SCHOOL
 # TUITFEES  9-10          Tuition/fees decile, 1993-94
 ```
 
