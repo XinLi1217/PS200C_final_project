@@ -14,6 +14,8 @@ library(descr)
 library(MatchIt)
 library(sensemakr)
 library(huxtable)
+library(margins)
+library(mfx)
 ```
 
 ```{r read data}
@@ -277,12 +279,16 @@ table(data1$transfer)
 # probit
 probit <- glm(ba~transfer+female+hispanic+ses+
                   hsscore+acapro+honor+gover+child+marry+expectba+
-                  grant+loans+workoncampus+work9293+colw,family="binomial"(link=probit))
+                  grant+loans+workoncampus+work9293+colw,data1, family="binomial"(link=probit))
 lm <- lm(ba~transfer+female+hispanic+ses+
                   hsscore+acapro+honor+gover+child+marry+expectba+
                   grant+loans+workoncampus+work9293+colw)
 summary(probit)
-huxreg(probit,lm)
+margins(probit)
+mfx <-probitmfx(ba~transfer+female+hispanic+ses+
+                  hsscore+acapro+honor+gover+child+marry+expectba+
+                  grant+loans+workoncampus+work9293+colw, data1)
+
 summary(lm(ba~transfer))
 # estimate propensity scores
 pi.out = glm(transfer~female+asian+black+hispanic+white+ses+
