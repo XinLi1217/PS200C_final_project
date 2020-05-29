@@ -1,0 +1,117 @@
+---
+title: "Are Community College Transfer Students Less Likely to Earn a Bachelor's Degree than Rising Four-year College Juniors?"
+output: 
+  beamer_presentation:
+    theme: "CambridgeUS"
+    colortheme: "dolphin"
+author: "Patricia Martin & Xin Li"
+date: "May, 2020"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Introduction
+
+- Community college
+
+- Educational outcomes of transfer students
+
+ (I think we can add the finding of the paper here and also some literature review of the mixed results of this research question)
+ 
+## Data
+
+- National Education Longitudinal Study of 1988 (NELS:88) 
+
+- limitation: restricted data use file
+
+  - transcript data: outcome of non-remedial credits earned; threshold of transfer vs. rising junior
+  
+  - regional data: county-level labor market, higher education characteristics
+  
+## Data
+
+We have recreated most of the variables used in the study and ran some data investigations to make sure the variables were created correctly.
+
+### (insert Table 1 here)
+
+## Empirical Strategy
+
+### OLS & Probit
+
+$$BA_i = Transfer_i \beta + X_i \gamma + \epsilon$$
+
+- $BA_i$: Bachelor attainment, =1 if the student attained a bachelor’s degree within eight years of high school graduation
+
+- $Transfer_i$: Transfer student, =1 for students who first attended a community college and transferred to a four-year college
+
+- $X_i$: Individual-specific covariates, includes individual characteristics, high school academic preparation and other characteristics, financial aid and work related activities and Regional characteristics.
+
+## Empirical Strategy
+
+### OLS & Probit
+
+### (insert Table 2 here)
+
+## Empirical Strategy
+
+### PSM
+
+- Individuals might self-select into specific types of institutions based on many observed and unobserved individual characteristics
+
+- Matching groups of students based on observable pre-treatment characteristics to approxiamate randomization 
+
+- Based ontrong assumption: all the factors related to college degree attainment were observed and used
+
+- Propensity scores are estimated using all of the control variables by a probit function
+
+## Empirical Strategy
+
+### PSM
+
+### (insert PSM result here)
+
+## Sensitivity analysis
+
+Using sensitivity analysis, we can discuss the causal estimates posed by the authors, challenge their assumption of no unobserved confounding, and investigate how confounders might change the research conclusions.
+
+## Sensitivity analysis
+
+### Confounders
+
+-  Non-random selection in college admission and applicant enrollment decision
+
+  - affect both institutional selection and academic performance
+
+  - e.g. individual ability, ambition, motivation, hard work, academic preparation, maturity, access to resources (e.g. school counselors), and family characteristics 
+  
+- The influence of institutional-level factors is confounded by the nonrandom selection of students into institutions with different qualities.
+
+- For instance: Community college students who successfully transfer into a four-year college through the complicated transitional process between different education settings are strongly motivated and more inclined to persist (Lee, 1993; Wang, 2009). 
+  
+## Sensitivity analysis
+
+### Benchmarking
+
+Female, Hispanic and bachelor’s degree expectation are used as the benchmark variables to bound the relative strength of the unobserved confounders. Because they are strong and visible predictors of the bachelor’s degree attainment theoretically and empirically (Melguizo et al, 2011; Wang, 2009), and likely explains more of the residual variation than any unobserved confounders.
+
+## Sensitivity analysis
+
+### Results
+
+### (insert sensitivity analysis table here)
+
+## Sensitivity analysis
+
+### Results
+
+### (insert sensitivity analysis plots here)
+
+## Conclusion
+
+
+
+
+
+
