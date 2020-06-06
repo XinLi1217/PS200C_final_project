@@ -39,19 +39,19 @@ load(file.path(data_dir,"NELS_88_00_PSE1994_V1_0.rdata"))
 #PSE1994 %>%
 #  var_label() #variable labels
 
-head(PSE1994) #View data
+# head(PSE1994) #View data
 
 names(PSE1994) <- str_to_lower(names(PSE1994)) #lowercase variable names
 
 pse1994 <- PSE1994
 
-head(pse1994)
+# head(pse1994)
 
-pse1994 %>%
-  dplyr::group_by(stu_id, incode, instnum) %>%
-  summarise(n_per_group = n()) %>%
-  ungroup() %>%
-  count(n_per_group)
+# pse1994 %>%
+#  dplyr::group_by(stu_id, incode, instnum) %>%
+#  summarise(n_per_group = n()) %>%
+#  ungroup() %>%
+#  count(n_per_group)
 
 #Uniquely identified by student id, NELS:88/94 code of inst attended, and institution sequence number
 
@@ -62,22 +62,22 @@ pse1994 %>%
 #PSEF3F4 %>%
 #  var_label() #variable labels
 
-head(PSEF3F4) #View data
+#head(PSEF3F4) #View data
 
 names(PSEF3F4) <- str_to_lower(names(PSEF3F4)) #lowercase variable names
 
 psef3f4 <- PSEF3F4
 
-psef3f4 %>%
-  dplyr::group_by(stu_id, incode) %>%
-  summarise(n_per_group = n()) %>%
-  ungroup() %>%
-  count(n_per_group)
+#psef3f4 %>%
+#  dplyr::group_by(stu_id, incode) %>%
+#  summarise(n_per_group = n()) %>%
+#  ungroup() %>%
+#  count(n_per_group)
 
 #PSE94FLG is a flag variable that indicates whether or not the postsecondary institution reported by the sample member was provided during the NELS:88 third follow-up interview in 1994.  For those students that reported schools during the 1994 interview, information on these postsecondary institutions is contained in the PSE1994 file. To match to record(s) in the PSE1994 file, STU_ID+INCODE may be used for merging files. Sources: NELS:88/94
 
-psef3f4 %>%
-  dplyr::count(pse94flg) #9226 postsecondary institution was provided in the third follow-up
+#psef3f4 %>%
+#  dplyr::count(pse94flg) #9226 postsecondary institution was provided in the third follow-up
 ```
 
 ```{r merge 1994 and fourth follow-up}
@@ -87,16 +87,16 @@ pse_all <- left_join(psef3f4, pse1994, by = c('stu_id', 'incode'))
 #check merge
 anti_pse <- anti_join(psef3f4, pse1994, by = c('stu_id', 'incode'))
 
-anti_pse %>%
-  count(pse94flg) #7233 where 1994 institution was not provided in third follow-up
+#anti_pse %>%
+#  count(pse94flg) #7233 where 1994 institution was not provided in third follow-up
 
-pse_all %>%
-  count(pse94flg) #7233
+#pse_all %>%
+#  count(pse94flg) #7233
 ```
 
 ```{r investigate merge}
 #investigate pse_all data
-head(pse_all)
+# head(pse_all)
 
 #Want to drop obs where pse94flg is 0 because we do not have data for institution reported for the third follow-up
 #names(pse_all)
@@ -108,7 +108,7 @@ pse_aid <- pse_all %>%
   dplyr::select(grants, loans, workstdy)
 
 #quick check of missing values 
-sapply(pse_aid, function(x) sum(is.na(x)))
+# sapply(pse_aid, function(x) sum(is.na(x)))
 ```
 
 ```{r data cleaning}
@@ -120,11 +120,11 @@ data <- BYF4STU %>% dplyr::select(c(stu_id,f4efsect, f4elsect, f4hhdg, bys12, ra
 #DONE Need to add all variables for employment by month
 #DONE Need to add trnregon variable for region of last school attended
 
-data %>%
-  dplyr::select(f4efsect, f4elsect) %>%
-  filter(f4efsect %in% c(-7,-3,-2,-1) | f4elsect %in% c(-7,-3,-2,-1)) %>%
-  group_by(f4efsect) %>%
-  count(f4elsect)
+#data %>%
+#  dplyr::select(f4efsect, f4elsect) %>%
+#  filter(f4efsect %in% c(-7,-3,-2,-1) | f4elsect %in% c(-7,-3,-2,-1)) %>%
+#  group_by(f4efsect) %>%
+#  count(f4elsect)
 
 # Transfer
 # data %>% count(F4EFSECT)
@@ -283,43 +283,101 @@ probit <- glm(ba~transfer+female+hispanic+ses+
 lm <- lm(ba~transfer+female+hispanic+ses+
                   hsscore+acapro+honor+gover+child+marry+expectba+
                   grant+loans+workoncampus+work9293+colw)
+summary(lm)
 summary(probit)
 margins(probit)
 mfx <-probitmfx(ba~transfer+female+hispanic+ses+
                   hsscore+acapro+honor+gover+child+marry+expectba+
                   grant+loans+workoncampus+work9293+colw, data1)
-
-summary(lm(ba~transfer))
+mfx
+# summary(lm(ba~transfer))
 # estimate propensity scores
 pi.out = glm(transfer~female+asian+black+hispanic+white+ses+
                   hsscore+acapro+honor+gover+child+marry+expectba+
                   grant+loans+workoncampus,family="binomial"(link=probit))
 # propensity scores for treated and control
-plot(density(pi.out$fit[transfer==1]), lwd=2, main="Distribution of pscores", ylim =c(0,4))
+plot(density(pi.out$fit[transfer==1]), lwd=2, main="Distribution of pscores", ylim =c(0,4.5), xlab="")
 lines(density(pi.out$fit[transfer==0]), lwd=2, lty=2)
-legend("topleft", legend=c("treated","controls"), lty=c(1,2), lwd=2)
+legend("topright", legend=c("treated","controls"), lty=c(1,2), lwd=2)
 # match on propensity score
 matchout.pi1=Match(Y=ba, Tr=transfer, X=pi.out$fit, M=1,estimand="ATT")
-summary(matchout.pi)
+summary(matchout.pi1)
 matchout.pi2=Match(Y=ba, Tr=transfer, X=pi.out$fit, M=1,estimand="ATE")
-summary(matchout.pi)
+summary(matchout.pi2)
 matchout.pi3=Match(Y=ba, Tr=transfer, X=pi.out$fit, M=1,estimand="ATU")
-summary(matchout.pi)
+summary(matchout.pi3)
 # or use matchit()
 ```
 
 ```{r sensitivity ananlysis}
 sensitivity <- sensemakr(model = lm, 
-                                treatment = "transfer",
-                                #benchmark_covariates = "female",
-                                #kd = 1:3
-                         )
+                                treatment = "transfer")
 sensitivity
 summary(sensitivity)
-ovb_minimal_reporting(sensitivity, format = "latex")
-plot(sensitivity)
+# ovb_minimal_reporting(sensitivity, format = "latex")
+plot(sensitivity, xlim=c(0,0.2), ylim=c(0,0.2))
 plot(sensitivity, sensitivity.of = "t-value")
 plot(sensitivity, type = "extreme")
 ## probit? benchmark var? psm?
+
+# add benchmark: female; hispanic; expectba
+sensitivity1 <- sensemakr(model = lm, 
+                                treatment = "transfer",
+                                benchmark_covariates = c("female"),
+                                kd = 1:3
+                         )
+# sensitivity1
+# summary(sensitivity1)
+# ovb_minimal_reporting(sensitivity1, format = "latex")
+plot(sensitivity1, xlim=c(0,0.2), ylim=c(0,0.2))
+plot(sensitivity1, sensitivity.of = "t-value")
+plot(sensitivity1, type = "extreme")
+## probit? benchmark var? psm?
+
+sensitivity2 <- sensemakr(model = lm, 
+                                treatment = "transfer",
+                                benchmark_covariates = c("hispanic"),
+                                kd = 1:3
+                         )
+
+plot(sensitivity2)
+plot(sensitivity2, sensitivity.of = "t-value")
+
+
+sensitivity3 <- sensemakr(model = lm, 
+                                treatment = "transfer",
+                                benchmark_covariates = c("expectba"),
+                                kd = 1:3
+                         )
+
+plot(sensitivity3, xlim=c(0,0.2), ylim=c(0,0.2))
+plot(sensitivity3, sensitivity.of = "t-value")
+
+sensitivity4 <- sensemakr(model = lm, 
+                                treatment = "transfer",
+                                benchmark_covariates = c("female","expectba","hispanic"),
+                                kd = 3
+                         )
+
+plot(sensitivity4, xlim=c(0,0.2), ylim=c(0,0.2))
+plot(sensitivity4)
+
+sensitivity5 <- sensemakr(model = lm, 
+                                treatment = "transfer",
+                                benchmark_covariates = c("female","expectba","ses"),
+                                kd = 3
+                         )
+
+plot(sensitivity5, xlim=c(0,0.2), ylim=c(0,0.2))
+plot(sensitivity5)
+
+sensitivity6 <- sensemakr(model = lm, 
+                                treatment = "transfer",
+                                benchmark_covariates = c("ses"),
+                                kd = 1:3
+                         )
+
+plot(sensitivity6, xlim=c(0,0.2), ylim=c(0,0.2))
+plot(sensitivity6, sensitivity.of = "t-value")
 ```
 
