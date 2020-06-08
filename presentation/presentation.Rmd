@@ -1,5 +1,5 @@
 ---
-title: "Are Community College Transfer Students Less Likely to Earn a Bachelor's Degree than students who started at a 4-year institution?"
+title: "Difference in the Educational Attainment between Community College Transfer Students and Four-Year College students: A sensitivity analysis approach"
 output: 
   beamer_presentation:
     theme: "CambridgeUS"
@@ -88,8 +88,7 @@ $$BA_i = Transfer_i \beta + X_i \gamma + \epsilon$$
 
 ### OLS & Probit
 
-TABLE 2 
-Differences on Bachelor’s Degree Attainment (OLS & Probit)
+TABLE 2 Differences on Bachelor’s Degree Attainment (OLS & Probit)
 
 ![](table2){#id .class width=95% height=95%}
 
@@ -110,15 +109,14 @@ Differences on Bachelor’s Degree Attainment (OLS & Probit)
 
 ### PSM
 
-TABLE 3
-Differences on Bachelor’s Degree Attainment (Probit and PSM)
+TABLE 3 Differences on Bachelor’s Degree Attainment (Probit and PSM)
 
 ![](table3){#id .class width=95% height=95%}
 
 
 ## Sensitivity analysis
 
-Using sensitivity analysis, we can discuss the causal estimates posed by the authors, challenge their assumption of no unobserved confounding, and investigate how confounders might change the research conclusions.
+Using sensitivity analysis, we can investigate how strong confounding would need to be to substantively alter the results.
 
 ## Sensitivity analysis
 
@@ -129,10 +127,6 @@ Using sensitivity analysis, we can discuss the causal estimates posed by the aut
     - Affect both institutional selection and academic performance
 
     - Including, but not limited to: individual ability, ambition, motivation, hard work, academic preparation, maturity, access to resources (e.g. school counselors), and family characteristics 
-  
-- The influence of institutional-level factors is confounded by the nonrandom selection of students into institutions with different qualities.
-
-    - For instance, if highly motivated students self-select themselves into a particular type of institution, then a particular type of institution would seem to be doing a better job of graduating students, even though the true reason for the higher graduation rates is that the institution attracts students who are more likely to graduate (Melguizo, & Dowd, 2009). 
     
 ## Sensitivity analysis
 
@@ -154,69 +148,97 @@ Using sensitivity analysis, we can discuss the causal estimates posed by the aut
 
 ## Sensitivity analysis
 
+### Results 
+
+TABLE 4 Sensitivity Analysis Result
+
+![](sa){#id .class width=100% height=100%} 
+
+- Confounding that explains just 5.21% of the residual variance of transfer and education attainment would eliminate the result entirely; and a confounder explaining just 2.06% would reduce it below converntional levels of statistical significance.
+
+## Sensitivity analysis
+
+### Results
+
+
+:::: {.columns}
+
+::: {.column}
+
+\center Sensitivity of point estimate 
+
+![](sa1){#id .class width=90% height=90%}
+
+::::
+
+:::: {.column}
+
+\center Sensitivity of t-statistic
+
+![](sa2){#id .class width=90% height=90%}
+
+::::
+
+:::
+
+## Sensitivity analysis
+
+### Results - Extreme Scenario
+
+\center 
+![](sa5){#id .class width=80% height=80%}
+
+## Sensitivity analysis
+
 ### Benchmarking
 
-Socioeconomic status, constructed from a composite of parental education, parental occupation and household income, is used as the benchmark variables to bound the relative strength of the unobserved confounders. The benchmark variable was chosen because it is a strong and visible predictor of bachelor’s degree attainment theoretically and empirically (Melguizo et al, 2011; Wang, 2009), and likely explains more of the residual variation than any unobserved confounders.
+Socioeconomic status is used as the benchmark variables to bound the relative strength of the unobserved confounders. 
 
+- constructed from a composite of parental education, parental occupation and household income
+  
+- X ~ D: socioeconomic disparity $\rightarrow$ high school academic preparation $\rightarrow$ type of starting institution
+  
+- X ~ Y: socioeconomic status $\rightarrow$ family resources, environment $\rightarrow$ academic attainment
+  
 ## Sensitivity analysis
 
-### Results
-
-TABLE 4
-Sensitivity Analysis Result
-
-![](sa){#id .class width=100% height=100%}
-
-
-## Sensitivity analysis
-
-### Results
+### Results - Benchmarking
 
 :::: {.columns}
 
 ::: {.column}
 
-![](sa1){#id .class width=100% height=100%}
+\center Sensitivity of point estimate
+
+![](sa3){#id .class width=80% height=80%}
 
 ::::
 
 :::: {.column}
 
-![](sa2){#id .class width=100% height=100%}
+\center Sensitivity of t-statistic
+
+![](sa4){#id .class width=80% height=80%}
 
 ::::
 
 :::
 
-## Sensitivity analysis
-
-### Results
-
-:::: {.columns}
-
-::: {.column}
-
-![](sa3){#id .class width=100% height=100%}
-
-::::
-
-:::: {.column}
-
-![](sa4){#id .class width=100% height=100%}
-
-::::
-
-:::
+- If confounders explain more than three times (twice) the residual variance explained by socioeconomic status, the point estimate (significance level) would be changed.
 
 ## Conclusion
 
-- The results we described in our empirical strategy are likely sensitive to the unobserved confounders we proposed here. 
+- Conventional regression analyses find transfer students are less likely to obtain bachelor’s degrees, holding individual characteristics, high school academic preparation, financial aid and work opportunities, and regional characteristics the same.
 
-- The relationship between transfer and bachelor’s degree attainment can be overturned by even very weak confounders. 
+- However, the results is likely sensitive to the unobserved confounders. The relationship between transfer and bachelor’s degree attainment can be overturned by even very weak confounders. 
+  
+- "Sensitivity analyses leave the door open for progress"
 
-- ...
+  - measure and include confounders?
+  
+  - other identificaiton strategies? IV?
 
-## 
+##
 
 \center
 
