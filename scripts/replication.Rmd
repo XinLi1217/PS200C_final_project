@@ -16,6 +16,7 @@ library(sensemakr)
 library(huxtable)
 library(margins)
 library(mfx)
+library(ebal)
 ```
 
 ```{r read data}
@@ -307,6 +308,55 @@ summary(matchout.pi2)
 matchout.pi3=Match(Y=ba, Tr=transfer, X=pi.out$fit, M=1,estimand="ATU")
 summary(matchout.pi3)
 # or use matchit()
+```
+
+```{r balance before matching on propensity scores}
+mb = MatchBalance(transfer~female+asian+black+hispanic+white+ses+
+                          hsscore+acapro+honor+gover+child+marry+expectba+
+                          grant+loans+workoncampus, data = data1, print.level = 0, nboots=10000)
+
+varnames=c("Female", "Asian", "black","Hispanic", "White",
+           "Socioeconomic status (range -1 to 1)",
+           "High school test score (math and verbal)",
+           "Academic program in high school", 
+           "Participated in honors program in high school",
+           "Participated in student government in high school",
+           "Had a child by 1992", "Married by 1992",
+           "Bachelor's degree expectations",
+           "Received a grant","Took out a loan", "Worked on-campus")
+
+btest=baltest.collect(mb,var.names=varnames,after=F) #collect results via baltest.collect package
+
+#Display output, rounding to two digits
+
+#round(btest[,c("mean.Tr","mean.Co","T pval","KS pval")],2)
+
+knitr::kable(btest[,c("mean.Tr","mean.Co","T pval","KS pval")], digits=2)
+```
+
+```{r balance after matching on propensity scores}
+mb.after = MatchBalance(match.out=matchout.pi1,transfer~female+asian+black+hispanic+white+ses+
+                          hsscore+acapro+honor+gover+child+marry+expectba+
+                          grant+loans+workoncampus, data = data1, print.level = 0, nboots=10000)
+varnames=c("Female", "Asian", "black","Hispanic", "White",
+           "Socioeconomic status (range -1 to 1)",
+           "High school test score (math and verbal)",
+           "Academic program in high school", 
+           "Participated in honors program in high school",
+           "Participated in student government in high school",
+           "Had a child by 1992", "Married by 1992",
+           "Bachelor's degree expectations",
+           "Received a grant","Took out a loan", "Worked on-campus")
+
+btest_after_pi=baltest.collect(mb.after,var.names=varnames,after=T)
+
+#Display output, rounding to two digits
+knitr::kable(round(btest_after_pi[,c("mean.Tr","mean.Co","T pval","KS pval")],2))
+
+balancecompare.pi=cbind(round(btest[,c("mean.Tr","mean.Co","T pval","KS pval")],2),
+                        round(btest_after_pi[,c("mean.Tr","mean.Co","T pval","KS pval")],2)) 
+
+balancecompare.pi
 ```
 
 ```{r sensitivity ananlysis}
