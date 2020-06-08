@@ -116,10 +116,6 @@ TABLE 3 Differences on Bachelor’s Degree Attainment (Probit and PSM)
 
 ## Sensitivity analysis
 
-Using sensitivity analysis, we can investigate how strong confounding would need to be to substantively alter the results.
-
-## Sensitivity analysis
-
 ### Confounders
 
 -  Non-random selection in college admission and applicant enrollment decision
@@ -145,6 +141,32 @@ Using sensitivity analysis, we can investigate how strong confounding would need
 ### Confounders
 
 ![](motivation){#id .class width=100% height=100%}
+
+
+## Sensitivity analysis
+
+### Confounders
+
+- Case 1
+
+  - Z negatively affects D
+
+  - Z positively affects Y
+
+  - Combined that produces bias in the positive direction 
+  
+  - an observed negative treatment effect would be less negative
+
+- Case 2
+
+  - Z positively affects D
+
+  - Z positively affects Y
+
+  - Combined that produces bias in the negative direction
+  
+  - an observed negative treatment effect would be more negative
+
 
 ## Sensitivity analysis
 
