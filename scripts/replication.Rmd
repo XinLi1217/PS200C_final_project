@@ -351,9 +351,9 @@ varnames=c("Female", "Asian", "black","Hispanic", "White",
 btest_after_pi=baltest.collect(mb.after,var.names=varnames,after=T)
 
 #Display output, rounding to two digits
-knitr::kable(round(btest_after_pi[,c("mean.Tr","mean.Co","T pval","KS pval")],2))
+knitr::kable(round(btest_after_pi[,c("mean.Tr","mean.Co","T pval")],2))
 
-balancecompare.pi=cbind(round(btest[,c("mean.Tr","mean.Co","T pval","KS pval")],2),
+balancecompare.pi=cbind(round(btest[,c("mean.Tr","mean.Co","T pval")],2),
                         round(btest_after_pi[,c("mean.Tr","mean.Co","T pval")],2)) 
 
 balancecompare.pi
