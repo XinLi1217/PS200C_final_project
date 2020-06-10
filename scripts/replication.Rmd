@@ -331,7 +331,7 @@ btest=baltest.collect(mb,var.names=varnames,after=F) #collect results via baltes
 
 #round(btest[,c("mean.Tr","mean.Co","T pval","KS pval")],2)
 
-knitr::kable(btest[,c("mean.Tr","mean.Co","T pval","KS pval")], digits=2)
+knitr::kable(btest[,c("mean.Tr","mean.Co","T pval")], digits=2)
 ```
 
 ```{r balance after matching on propensity scores}
@@ -354,7 +354,7 @@ btest_after_pi=baltest.collect(mb.after,var.names=varnames,after=T)
 knitr::kable(round(btest_after_pi[,c("mean.Tr","mean.Co","T pval","KS pval")],2))
 
 balancecompare.pi=cbind(round(btest[,c("mean.Tr","mean.Co","T pval","KS pval")],2),
-                        round(btest_after_pi[,c("mean.Tr","mean.Co","T pval","KS pval")],2)) 
+                        round(btest_after_pi[,c("mean.Tr","mean.Co","T pval")],2)) 
 
 balancecompare.pi
 ```
