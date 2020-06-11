@@ -1,0 +1,487 @@
+---
+title: "replication"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(haven)
+library(labelled)
+library(Matching)
+library(knitr)
+library(descr)
+library(MatchIt)
+library(sensemakr)
+library(huxtable)
+library(margins)
+library(mfx)
+library(ebal)
+```
+
+```{r read data}
+data_dir <- file.path('..', 'data')
+
+#Load rdata files
+load(file.path(data_dir,"NELS_88_00_BYF4STU_V1_0.rdata"))
+load(file.path(data_dir,"NELS_88_00_INSTF3F4_V1_0.rdata"))
+load(file.path(data_dir,"NELS_88_00_PSEF3F4_V1_0.rdata"))
+load(file.path(data_dir,"NELS_88_00_PSE1994_V1_0.rdata"))
+
+# Load stata data because it has variable labels
+#byf4stu <- read_dta(file.path(data_dir,"NELS_88_00_BYF4STU_V1_0.dta"))
+#instf3f4 <- read_dta(file.path(data_dir,"NELS_88_00_INSTF3F4_V1_0.dta"))
+#psef3f4 <- read_dta(file.path(data_dir,"NELS_88_00_PSEF3F4_V1_0.dta"))
+#pse1994 <- read_dta(file.path(data_dir,"NELS_88_00_PSE1994_V1_0.dta"))
+```
+
+```{r 1994 data}
+#NELS:88 third follow-up interview in 1994
+#PSE1994 %>%
+#  var_label() #variable labels
+
+# head(PSE1994) #View data
+
+names(PSE1994) <- str_to_lower(names(PSE1994)) #lowercase variable names
+
+pse1994 <- PSE1994
+
+# head(pse1994)
+
+# pse1994 %>%
+#  dplyr::group_by(stu_id, incode, instnum) %>%
+#  summarise(n_per_group = n()) %>%
+#  ungroup() %>%
+#  count(n_per_group)
+
+#Uniquely identified by student id, NELS:88/94 code of inst attended, and institution sequence number
+
+```
+
+```{r four follow-up}
+#NELS:88 fourth follow-up interview
+#PSEF3F4 %>%
+#  var_label() #variable labels
+
+#head(PSEF3F4) #View data
+
+names(PSEF3F4) <- str_to_lower(names(PSEF3F4)) #lowercase variable names
+
+psef3f4 <- PSEF3F4
+
+#psef3f4 %>%
+#  dplyr::group_by(stu_id, incode) %>%
+#  summarise(n_per_group = n()) %>%
+#  ungroup() %>%
+#  count(n_per_group)
+
+#PSE94FLG is a flag variable that indicates whether or not the postsecondary institution reported by the sample member was provided during the NELS:88 third follow-up interview in 1994.  For those students that reported schools during the 1994 interview, information on these postsecondary institutions is contained in the PSE1994 file. To match to record(s) in the PSE1994 file, STU_ID+INCODE may be used for merging files. Sources: NELS:88/94
+
+#psef3f4 %>%
+#  dplyr::count(pse94flg) #9226 postsecondary institution was provided in the third follow-up
+```
+
+```{r merge 1994 and fourth follow-up}
+#merge psef3f4 and pse1994 datasets
+pse_all <- left_join(psef3f4, pse1994, by = c('stu_id', 'incode'))
+
+#check merge
+anti_pse <- anti_join(psef3f4, pse1994, by = c('stu_id', 'incode'))
+
+#anti_pse %>%
+#  count(pse94flg) #7233 where 1994 institution was not provided in third follow-up
+
+#pse_all %>%
+#  count(pse94flg) #7233
+```
+
+```{r investigate merge}
+#investigate pse_all data
+# head(pse_all)
+
+#Want to drop obs where pse94flg is 0 because we do not have data for institution reported for the third follow-up
+#names(pse_all)
+
+pse_all <- pse_all %>%
+  filter(pse94flg==1)
+
+pse_aid <- pse_all %>%
+  dplyr::select(grants, loans, workstdy)
+
+#quick check of missing values 
+# sapply(pse_aid, function(x) sum(is.na(x)))
+```
+
+```{r data cleaning}
+names(BYF4STU) <- str_to_lower(names(BYF4STU)) #lowercase variable names
+
+data <- BYF4STU %>% dplyr::select(c(stu_id,f4efsect, f4elsect, f4hhdg, bys12, race, byses, f22xrstd, f22xmstd, f1hsprog,bys82o, f1s41bc, f2s30bc, f1d63, marstat, bypsepln, f2s76, edexpect,labr0692, labr0792, labr0892, labr0992, labr1092, labr1192, labr1292, labr0193, labr0293, labr0393, labr0493, labr0593, labr0693, labr0793, labr0893, labr0993, labr1093, labr1193, labr1293, trnregon, bypared, byp30, byp31, byp34b, byp37b, byp80))
+
+#FOR XIN
+#DONE Need to add all variables for employment by month
+#DONE Need to add trnregon variable for region of last school attended
+
+#data %>%
+#  dplyr::select(f4efsect, f4elsect) %>%
+#  filter(f4efsect %in% c(-7,-3,-2,-1) | f4elsect %in% c(-7,-3,-2,-1)) %>%
+#  group_by(f4efsect) %>%
+#  count(f4elsect)
+
+# Transfer
+# data %>% count(F4EFSECT)
+# data %>% count(F4ELSECT)
+data <- data %>% mutate(community1=ifelse(f4efsect==4,1,ifelse(f4efsect %in% c(5,6),0,NA)),
+                         community2=ifelse(f4elsect==4,1,ifelse(f4elsect %in% c(5,6),0,NA)))
+# data %>% count(community1)
+# data %>% count(community2)
+# crosstab(data$community1,data$community2)
+data <- data %>% mutate(transfer = ifelse(community1==1 & community2 ==0, 1, 
+                                           ifelse(community1==0 & community2 ==0, 0,NA)))
+# data %>% count(transfer)
+
+#data %>% count(PSEFIRTY)
+#length(data$PSEFIR)
+#data %>% count(PSELASTY)
+#data1 <- data %>% mutate(community1=ifelse(PSEFIRTY==4,1,ifelse(PSEFIRTY %in% c(5,6),0,NA)),
+#                         community2=ifelse(PSELASTY==4,1,ifelse(PSELASTY %in% c(5,6),0,NA)))
+#data1 %>% count(community1)
+#data1 %>% count(community2)
+#crosstab(data$community1,data$community2)
+
+
+# BA 
+data <- data %>% mutate(ba=ifelse(f4hhdg>=4,1,ifelse(f4hhdg<=0,NA,0)))
+
+# Covariate
+## Individual characteristics
+data <- data %>% mutate(female = ifelse(bys12==2,1,ifelse(bys12==1,0,NA)),
+                        asian = ifelse(race==1,1,ifelse(race %in% c(8,9),NA,0)),
+                        black = ifelse(race==3,1,ifelse(race %in% c(8,9),NA,0)), 
+                        hispanic = ifelse(race==2,1,ifelse(race %in% c(8,9),NA,0)), 
+                        white = ifelse(race==4,1,ifelse(race %in% c(8,9),NA,0)))
+data$ses <- ifelse(data$byses<99, scale(data$byses,
+                                        center=(2.56000-2.87500)/2, 
+                                        scale =(2.56000+2.87500)/2), NA)
+
+
+#crosstab(data$f1s41bc,data$f2s30b)
+
+## High school academic preparation and other characteristics
+data$hsscore <- ifelse(data$f22xrstd<99 & data$f22xmstd<99,
+                       (data$f22xrstd + data$f22xmstd)/2, NA)
+data <- data %>% mutate(acapro = ifelse(f1hsprog==2,1,ifelse(f1hsprog %in% c(5,8,9),NA,0)),
+                        honor = ifelse(bys82o %in% c(2,3),1,ifelse(bys82o %in% c(6,8,9),NA,0)),
+                        #gover = ifelse(f1s41bc %in% c(3,4)|f2s30bc %in% c(3,4),1,
+                        #               ifelse(f1s41bc %in% c(6,8,9) & f2s30bc %in% c(6,8,9),NA,0)), 
+                        gover = ifelse(f1s41bc %in% c(3,4),1,
+                                       ifelse(f1s41bc %in% c(6,8,9),NA,0)), 
+                        child = ifelse(f2s76 ==1,1,ifelse(f2s76 %in% c(7,8,9),NA,0)),
+                        marry = ifelse(marstat%in%c(2,3,4),1,ifelse(marstat<0,NA,0)),
+                        expectba =ifelse(edexpect%in%c(7,8,9,10),1,ifelse(edexpect<0,NA,0)))
+# table(data$f1s41bc)
+
+
+## Regional and labor market characteristics
+data <- data %>% mutate(colne = ifelse(trnregon==1,1,ifelse(trnregon<0,NA,0)),
+                        colmw = ifelse(trnregon==2,1,ifelse(trnregon<0,NA,0)),
+                        cols = ifelse(trnregon==3,1,ifelse(trnregon<0,NA,0)),
+                        colw = ifelse(trnregon==4,1,ifelse(trnregon<0,NA,0)))
+
+# G12REGON TRNREGON 2243-2244     REGION (CENSUS) OF STUDENT^S SCHOOL
+# TUITFEES  9-10          Tuition/fees decile, 1993-94
+
+
+## Financial aid and work related activities
+#Read in pse data
+
+#pse_all %>%
+#  group_by(stu_id, instnum) %>%
+#  summarise(n_per_group = n()) %>%
+#  ungroup() %>%
+#  count(n_per_group)
+
+data <- left_join(data, pse_all, by = 'stu_id')
+
+#data %>%
+#  group_by(transfer) %>%
+# count(instnum)
+
+#data_anti <- anti_join(data, pse_all, by = 'stu_id')
+
+#data_anti %>%
+#  count(pse94flg)
+
+### duplicate stu_id?? all.x= TRUE, all.y = FALSE??
+
+data <- data %>% mutate(grant =ifelse(grants==1,1,ifelse(grants==2,0,NA)),
+                        loans = ifelse(loans==1,1,ifelse(loans==2,0,NA)),
+                        workoncampus =ifelse(campjob==1,1,ifelse(campjob==2,0,NA)))
+
+data <- data %>% mutate(work9293 = ifelse(labr0692==1|labr0792==1|labr0892==1|labr0992==1|
+                        labr1092==1|labr1192==1|labr1292==1|
+                        labr0193==1|labr0293==1|labr0393==1|labr0493==1|
+                        labr0593==1|labr0693==1|labr0793==1|labr0893==1|
+                        labr0993==1|labr1093==1|labr1193==1|labr1293==1, 1,
+                        ifelse(labr0692 %in% c(2,3,4) |labr0792%in% c(2,3,4)|labr0892%in% c(2,3,4)|
+                        labr0992%in% c(2,3,4)|labr1092%in% c(2,3,4)|labr1192%in% c(2,3,4)|labr1292%in% c(2,3,4)|
+                        labr0193%in% c(2,3,4)|labr0293%in% c(2,3,4)|labr0393%in% c(2,3,4)|labr0493%in% c(2,3,4)|
+                        labr0593%in% c(2,3,4)|labr0693%in% c(2,3,4)|labr0793%in% c(2,3,4)|labr0893%in% c(2,3,4)|
+                        labr0993%in% c(2,3,4)|labr1093%in% c(2,3,4)|labr1193%in% c(2,3,4)|labr1293%in% c(2,3,4),
+                        0,NA)))
+
+
+## SES
+# bypared, byp30, byp31, byp34b, byp37b, byp80
+table(data$pared2)
+data <- data %>% mutate(pared1 = ifelse(byp30 %in% c(1,2), 1, 
+                                        ifelse(byp30 %in% c(3,4), 2, 
+                                               ifelse(byp30 %in% c(5,6,7,8,9,10),3,
+                                                      ifelse(byp30 ==11,4,
+                                                             ifelse(byp30 ==12,5,
+                                                                    ifelse(byp30 ==13,6,NA)))))),
+                        pared2 = ifelse(byp31 %in% c(1,2), 1, 
+                                        ifelse(byp31 %in% c(3,4), 2, 
+                                               ifelse(byp31 %in% c(5,6,7,8,9,10),3,
+                                                      ifelse(byp31 ==11,4,
+                                                             ifelse(byp31 ==12,5,
+                                                                    ifelse(byp31 ==13,6,NA)))))),
+                          parocu1 = ifelse(byp34b==1, 56.58, ifelse(byp34b == 2, 27.41, ifelse(byp34b == 3, 28.00,ifelse(byp34b == 5, 7.33,ifelse(byp34b == 6, 67.73,ifelse(byp34b == 8, 19.18,ifelse(byp34b == 9, 70.21, ifelse(byp34b == 10, 70.21,ifelse(byp34b == 11, 49.70,ifelse(byp34b == 12, 38.00,ifelse(byp34b == 13, 54.42,ifelse(byp34b == 14,70.21,ifelse(byp34b == 15, 15.90,ifelse(byp34b == 16, 61.40, NA)))))))))))))),
+                         parocu2 = ifelse(byp37b==1, 56.58, ifelse(byp37b == 2, 27.41, ifelse(byp37b == 3, 28.00,ifelse(byp37b == 5, 7.33,ifelse(byp37b == 6, 67.73,ifelse(byp37b == 8, 19.18,ifelse(byp37b == 9, 70.21, ifelse(byp37b == 10, 70.21,ifelse(byp37b == 11, 49.70, ifelse(byp37b == 12, 38.00,ifelse(byp37b == 13, 54.42,ifelse(byp37b == 14, 70.21,ifelse(byp37b == 15,15.90,ifelse(byp37b == 16, 61.40, NA)))))))))))))),
+                        faminc = ifelse(byp80<=15, byp80, NA))
+```
+
+```{r summary statistics}
+data1 <- data %>% 
+  dplyr::select(c(stu_id, transfer, ba, female, asian, black, hispanic, white, ses,pared1, pared2,parocu1,parocu2,faminc,
+                  hsscore, acapro, honor, gover, child, marry, expectba, 
+                  grant, loans, workoncampus, work9293, colne, colmw, cols, colw)) 
+
+# data1 <- data1[is.na(data$transfer)==0,]
+data1 <- na.omit(data1)
+data1 %>% count(transfer)
+balance <- function(x){b <- balanceUV(x[is.na(x) == 0 & data1$transfer==1],
+                                 x[is.na(x) == 0 & data1$transfer==0])
+c(b[c(3,5,4,6,1,7)])
+}
+attach(data1)
+# as.matrix(cbind(unlist(lapply(data1[,seq(3,19,1)], balance))),17,6)
+table <- rbind(balance(ba), balance(female), balance(asian), balance(black),
+               balance(hispanic), balance(white), balance(ses), balance(hsscore),
+               balance(acapro), balance(honor), balance(gover), balance(child),
+               balance(marry),balance(expectba), balance(grant),balance(loans),
+              balance(workoncampus), balance(work9293), 
+              balance(colne),balance(colmw), balance(cols), balance(colw))
+table <- matrix(unlist(table),nrow=22,ncol=6,byrow=FALSE)
+table[,2] <- sqrt(table[,2])  ## change var to sd  
+table[,4] <- sqrt(table[,4])  
+round(table,2)
+rownames(table) <- c("Completed bachelor's degree by 2000",
+                     "Female", "Asian", "black","Hispanic", "White",
+                     "Socioeconomic status (range -1 to 1)",
+                     "High school test score (math and verbal)",
+                     "Academic program in high school", 
+                     "Participated in honors program in high school",
+                     "Participated in student government in high school",
+                     "Had a child by 1992", "Married by 1992",
+                     "Bachelor's degree expectations",
+                     "Received a grant","Took out a loan", "Worked on-campus", "working on 92-93",
+                     "northeast", "midwest", "south", "west")
+colnames(table) <- c("Mean.Tr", "SD.Tr", "Mean.Co","SD.Co","Diff","p_value" )
+
+kable(table, caption ="Descriptive Statistics of Transfers and Rising Junior Students", 
+      booktabs = T, digits = 2)
+
+table(data1$transfer)
+# apply(table["var.Tr",],1,sqrt)
+# or use: MatchBalance(transfer~ba+female)
+```
+
+```{r probit & psm}
+# probit
+probit <- glm(ba~transfer+female+hispanic+ses+
+                  hsscore+acapro+honor+gover+child+marry+expectba+
+                  grant+loans+workoncampus+work9293+colw,data1, family="binomial"(link=probit))
+lm <- lm(ba~transfer+female+hispanic+ses+
+                  hsscore+acapro+honor+gover+child+marry+expectba+
+                  grant+loans+workoncampus+work9293+colw)
+
+lm_ses <- lm(ba~transfer+female+hispanic+pared1+pared2+parocu1+parocu2+faminc+
+                  hsscore+acapro+honor+gover+child+marry+expectba+
+                  grant+loans+workoncampus+work9293+colw)
+summary(lm)
+summary(lm_ses)
+summary(probit)
+margins(probit)
+mfx <-probitmfx(ba~transfer+female+hispanic+ses+
+                  hsscore+acapro+honor+gover+child+marry+expectba+
+                  grant+loans+workoncampus+work9293+colw, data1)
+mfx
+# summary(lm(ba~transfer))
+# estimate propensity scores
+pi.out = glm(transfer~female+asian+black+hispanic+white+ses+
+                  hsscore+acapro+honor+gover+child+marry+expectba+
+                  grant+loans+workoncampus,family="binomial"(link=probit))
+# propensity scores for treated and control
+plot(density(pi.out$fit[transfer==1]), lwd=2, main="Distribution of pscores", ylim =c(0,4.5), xlab="")
+lines(density(pi.out$fit[transfer==0]), lwd=2, lty=2)
+legend("topright", legend=c("treated","controls"), lty=c(1,2), lwd=2)
+# match on propensity score
+matchout.pi1=Match(Y=ba, Tr=transfer, X=pi.out$fit, M=1,estimand="ATT")
+summary(matchout.pi1)
+matchout.pi2=Match(Y=ba, Tr=transfer, X=pi.out$fit, M=1,estimand="ATE")
+summary(matchout.pi2)
+matchout.pi3=Match(Y=ba, Tr=transfer, X=pi.out$fit, M=1,estimand="ATU")
+summary(matchout.pi3)
+# or use matchit()
+```
+
+```{r balance before matching on propensity scores}
+mb = MatchBalance(transfer~female+asian+black+hispanic+white+ses+
+                          hsscore+acapro+honor+gover+child+marry+expectba+
+                          grant+loans+workoncampus, data = data1, print.level = 0, nboots=10000)
+
+varnames=c("Female", "Asian", "black","Hispanic", "White",
+           "Socioeconomic status (range -1 to 1)",
+           "High school test score (math and verbal)",
+           "Academic program in high school", 
+           "Participated in honors program in high school",
+           "Participated in student government in high school",
+           "Had a child by 1992", "Married by 1992",
+           "Bachelor's degree expectations",
+           "Received a grant","Took out a loan", "Worked on-campus")
+
+btest=baltest.collect(mb,var.names=varnames,after=F) #collect results via baltest.collect package
+
+#Display output, rounding to two digits
+
+#round(btest[,c("mean.Tr","mean.Co","T pval","KS pval")],2)
+
+knitr::kable(btest[,c("mean.Tr","mean.Co","T pval","KS pval")], digits=2)
+```
+
+```{r balance after matching on propensity scores}
+mb.after = MatchBalance(match.out=matchout.pi1,transfer~female+asian+black+hispanic+white+ses+
+                          hsscore+acapro+honor+gover+child+marry+expectba+
+                          grant+loans+workoncampus, data = data1, print.level = 0, nboots=10000)
+varnames=c("Female", "Asian", "black","Hispanic", "White",
+           "Socioeconomic status (range -1 to 1)",
+           "High school test score (math and verbal)",
+           "Academic program in high school", 
+           "Participated in honors program in high school",
+           "Participated in student government in high school",
+           "Had a child by 1992", "Married by 1992",
+           "Bachelor's degree expectations",
+           "Received a grant","Took out a loan", "Worked on-campus")
+
+btest_after_pi=baltest.collect(mb.after,var.names=varnames,after=T)
+
+#Display output, rounding to two digits
+knitr::kable(round(btest_after_pi[,c("mean.Tr","mean.Co","T pval","KS pval")],2))
+
+balancecompare.pi=cbind(round(btest[,c("mean.Tr","mean.Co","T pval","KS pval")],2),
+                        round(btest_after_pi[,c("mean.Tr","mean.Co","T pval","KS pval")],2)) 
+
+balancecompare.pi
+```
+
+```{r sensitivity ananlysis}
+sensitivity <- sensemakr(model = lm, 
+                                treatment = "transfer")
+sensitivity
+summary(sensitivity)
+# ovb_minimal_reporting(sensitivity, format = "latex")
+plot(sensitivity, xlim=c(0,0.2), ylim=c(0,0.2))
+plot(sensitivity, sensitivity.of = "t-value")
+plot(sensitivity, type = "extreme")
+plot(sensitivity, type = "extreme", xlim =c(0,0.1), ylim = c(-0.3,0))
+
+## probit? benchmark var? psm?
+
+# add benchmark: female; hispanic; expectba
+sensitivity1 <- sensemakr(model = lm, 
+                                treatment = "transfer",
+                                benchmark_covariates = c("female"),
+                                kd = 1:3
+                         )
+# sensitivity1
+# summary(sensitivity1)
+# ovb_minimal_reporting(sensitivity1, format = "latex")
+plot(sensitivity1, xlim=c(0,0.2), ylim=c(0,0.2))
+plot(sensitivity1, sensitivity.of = "t-value")
+plot(sensitivity1, type = "extreme")
+## probit? benchmark var? psm?
+
+sensitivity2 <- sensemakr(model = lm, 
+                                treatment = "transfer",
+                                benchmark_covariates = c("hispanic"),
+                                kd = 1:3
+                         )
+
+plot(sensitivity2)
+plot(sensitivity2, sensitivity.of = "t-value")
+
+
+sensitivity3 <- sensemakr(model = lm, 
+                                treatment = "transfer",
+                                benchmark_covariates = c("expectba"),
+                                kd = 1:3
+                         )
+
+plot(sensitivity3, xlim=c(0,0.2), ylim=c(0,0.2))
+plot(sensitivity3, sensitivity.of = "t-value")
+
+sensitivity4 <- sensemakr(model = lm, 
+                                treatment = "transfer",
+                                benchmark_covariates = c("female","expectba","hispanic"),
+                                kd = 3
+                         )
+
+plot(sensitivity4, xlim=c(0,0.2), ylim=c(0,0.2))
+plot(sensitivity4)
+
+sensitivity5 <- sensemakr(model = lm, 
+                                treatment = "transfer",
+                                benchmark_covariates = c("female","expectba","ses"),
+                                kd = 3
+                         )
+
+plot(sensitivity5, xlim=c(0,0.2), ylim=c(0,0.2))
+plot(sensitivity5)
+summary(sensitivity5)
+
+sensitivity6 <- sensemakr(model = lm, 
+                                treatment = "transfer",
+                                benchmark_covariates = c("ses"),
+                                kd = 1:3
+                         )
+
+plot(sensitivity6, xlim=c(0,0.2), ylim=c(0,0.2))
+plot(sensitivity6, xlim=c(0,0.2), ylim=c(0,0.2))
+plot(sensitivity6, sensitivity.of = "t-value")
+plot(sensitivity6, type = "extreme")
+
+summary(sensitivity6)
+```
+
+```{r SES}
+sa_ses1 <- sensemakr(model = lm_ses, 
+                                treatment = "transfer",
+                                benchmark_covariates = c("pared1", "pared2", "parocu1", "parocu2", "faminc"),
+                                kd = 1:3)
+plot(sa_ses1, xlim=c(0,0.2), ylim=c(0,0.2))
+
+sa_ses2 <- sensemakr(model = lm_ses, 
+                                treatment = "transfer",
+                                 benchmark_covariates = 
+                            list(ses = c("pared1", "pared2", "parocu1", "parocu2", "faminc")),
+                                kd = 1:3)
+plot(sa_ses2)
+
+
+sa_ses3 <- sensemakr(model = lm_ses, 
+                                treatment = "transfer",
+                                 benchmark_covariates = c("faminc", "pared2"),
+                                kd = 1:3)
+plot(sa_ses3)
+```
+
